@@ -2,6 +2,7 @@ import os
 import torch
 import nibabel as nib
 import numpy as np
+import glob
 
 class Dataset(torch.utils.data.Dataset):
     'Characterizes a dataset for PyTorch'
@@ -23,8 +24,8 @@ class Dataset(torch.utils.data.Dataset):
 
         # Load filtered and unfiltered data for the specified timepoint
         if self.is_motion_corrected:
-            filtered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_U_mcf.nii.gz')
-            unfiltered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_F_mcf.nii.gz')
+            filtered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_U_mcf_MNI.nii.gz')
+            unfiltered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_F_mcf_MNI.nii.gz')
         else:
             filtered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_U.nii.gz') # U = filtered
             unfiltered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_F.nii.gz') # F = unfiltered
@@ -61,7 +62,7 @@ def prepare_data(data_folder):
         subject_path = os.path.join(data_folder, subject_folder)
         if os.path.isdir(subject_path):  # Ensure it's a directory
             # Determine the number of time points by loading one of the files
-            num_timepoints = nib.load(os.path.join(subject_path, 'DCE_4D_U.nii.gz')).shape[-1] # doesnt matter which file, bc same size
+            num_timepoints = nib.load(glob.glob(os.path.join(subject_path, 'DCE_4D_*.nii.gz'))[0]).shape[-1] # doesnt matter which file, bc same size
             
             # Generate identifiers for each timepoint
             for timepoint in range(num_timepoints):
