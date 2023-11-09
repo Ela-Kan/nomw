@@ -5,10 +5,11 @@ import nibabel as nib
 
 class Dataset(torch.utils.data.Dataset):
     'Characterizes a dataset for PyTorch'
-    def __init__(self, list_IDs, data_directory):
+    def __init__(self, list_IDs, data_directory, is_motion_corrected=False):
         'Initialization'
         self.list_IDs = list_IDs
         self.data_directory = data_directory
+        self.is_motion_corrected = is_motion_corrected
 
     def __len__(self):
         'Denotes the total number of samples'
@@ -20,8 +21,12 @@ class Dataset(torch.utils.data.Dataset):
         subject_folder, timepoint = self.list_IDs[index].split('_')
 
         # Load filtered and unfiltered data for the specified timepoint
-        filtered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_U.nii.gz') # U = filtered
-        unfiltered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_F.nii.gz') # F = unfiltered
+        if self.is_motion_corrected:
+            filtered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_U_mcf.nii.gz')
+            unfiltered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_F_mcf.nii.gz')
+        else:
+            filtered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_U.nii.gz') # U = filtered
+            unfiltered_path = os.path.join(self.data_directory, subject_folder, 'DCE_4D_F.nii.gz') # F = unfiltered
         
         # Load the NIfTI files and extract the specific timepoint data
         filtered_img = nib.load(filtered_path).slicer[..., int(timepoint)]
