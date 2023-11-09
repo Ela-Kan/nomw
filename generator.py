@@ -24,17 +24,15 @@ class Generator(nn.Module):
     """
 
     def __init__(self, 
-                 image_size: tuple=(64,64,64), 
                  in_channels: int = 1, 
                  embedding_dim: int=16,
                  out_channels: int=1,
                  num_subjects: int = 10) -> None:
         
         super(Generator, self).__init__()
-        self.image_size = image_size
         self.in_channels = in_channels
 
-        self.label_embedding = nn.Embedding(num_subjects, embedding_dim)
+        self.embedding = nn.Embedding(num_subjects, embedding_dim)
 
         self.encoder = nn.Sequential(
                     nn.Conv3d(in_channels, 64, kernel_size=3, padding=1),
@@ -67,7 +65,7 @@ class Generator(nn.Module):
         # Initializing all neural network weights.
         self._initialize_weights()
 
-    def forward(self, inputs: torch.Tensor, labels: list = None) -> torch.Tensor:
+    def forward(self, inputs: torch.Tensor, subject_id: str = None) -> torch.Tensor:
         """
         Args:
             inputs (tensor): input tensor into the calculation.
@@ -77,10 +75,14 @@ class Generator(nn.Module):
             A four-dimensional vector (N*C*H*W).
         """
 
-        conditional_inputs = torch.cat([inputs, self.label_embedding(labels)], dim=-1)
-        out = self.model(conditional_inputs)
-        out = out.reshape(out.size(0), self.channels, self.image_size, self.image_size)
-
+        subject_embedding = self.embedding(subject_id)
+        subject_embedding = subject_embedding.view(subject_embedding.size(0), subject_embedding.size(1), 1, 1, 1)
+        subject_embedding = subject_embedding.expand(-1, -1, x.size(2), x.size(3), x.size(4))
+        x = torch.cat([x, subject_embedding], dim=1)
+        x1 = self.encoder(x)
+        x2 = self.bottleneck(x1)
+        out = self.decoder(x2)
+        
         return out
 
     def _initialize_weights(self) -> None:
