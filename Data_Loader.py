@@ -31,7 +31,7 @@ class Dataset(torch.utils.data.Dataset):
         X = torch.from_numpy(filtered_img.get_fdata()).float()
         Y = torch.from_numpy(unfiltered_img.get_fdata()).float()
 
-        return X, Y
+        return X, Y, subject_folder
 
 
 def prepare_data(data_folder):

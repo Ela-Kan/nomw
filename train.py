@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-import torchvision.transforms as transforms
+from torchvision.transforms import v2
 from torch.autograd import Variable
 from generator import Generator
 from Discriminator import Discriminator
@@ -32,15 +32,17 @@ gan = GAN(image_size)
 optimizer_G = optim.Adam(gan.generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 optimizer_D = optim.Adam(gan.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
-# Assuming you have loaded your data into filtered_data and unfiltered_data tensors
-# You need to organize your data into batches using DataLoader
 # Define your transformations accordingly
 
-# Example:
-transform = transforms.Compose([
-    
-    # Add other transformations as needed
-])
+transform = v2.Compose([
+    v2.ToTensor(),
+    v2.RandomApply([v2.GaussianNoise(var_limit=(0, 0.1))], p=0.5),
+    v2.RandomApply([v2.RandomAdjustSharpness(sharpness_factor=(0.5, 1.5))], p=0.5),
+    v2.RandomApply([v2.RandomAdjustContrast(contrast_factor=(0.5, 1.5))], p=0.5),
+    v2.RandomApply([v2.RandomAdjustBrightness(brightness_factor=(0.5, 1.5))], p=0.5),
+    v2.RandomApply([v2.RandomGamma()], p=0.5),
+    v2.RandomApply([v2.GaussianBlur(kernel_size=(3, 5))], p=0.5),
+ ])
 
 # Create DataLoader
 dataset = TensorDataset(filtered_data, unfiltered_data)
