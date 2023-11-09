@@ -4,26 +4,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import torchvision.transforms as transforms
 from torch.autograd import Variable
-
-# Define the Generator and Discriminator networks
-class Generator(nn.Module):
-    def __init__(self):
-        super(Generator, self).__init__()
-        # Define your generator architecture here
-        # self.model = 
-    def forward(self, x):
-        # Define the forward pass of your generator
-        x = self.model(x)
-        return x
-
-class Discriminator(nn.Module):
-    def __init__(self):
-        super(Discriminator, self).__init__()
-        # Define your discriminator architecture here
-
-    def forward(self, x):
-        # Define the forward pass of your discriminator
-        return x
+from generator import Generator
+from Discriminator import Discriminator
 
 # Initialize the generator and discriminator
 generator = Generator()
