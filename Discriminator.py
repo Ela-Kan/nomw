@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class Discriminator(nn.Module):
     def __init__(self, 
-                 image_size: tuple=(64,64,64), 
+                 #image_size: tuple=(64,64,64), 
                  img_channels: int = 1, 
                  num_subjects: int = 15) -> None:
         
