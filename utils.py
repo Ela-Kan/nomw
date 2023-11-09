@@ -4,10 +4,7 @@ Created on Thu Nov  9 13:12:44 2023
 
 Utilities for the CMICHACKATHON 2023 project B
 """
-
-
-
-
+import torch
 import cv2
 import numpy as np
 # import matplotlib.pyplot as plt
@@ -97,6 +94,14 @@ def itransform_V(magnitude_spectrum):
     # plt.show()
 
     return reconstructed_volume
+
+def wasserstein_loss(output, target):
+    """
+    Wasserstein Loss (EMD) for WGAN
+    output: Discriminator output
+    target: Real (1) or Fake (0) labels
+    """
+    return torch.mean(output * target)
 
 
 
