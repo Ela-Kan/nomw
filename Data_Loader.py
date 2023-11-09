@@ -1,14 +1,15 @@
 import os
 import torch
-import numpy as np
 import nibabel as nib
+import numpy as np
 
 class Dataset(torch.utils.data.Dataset):
     'Characterizes a dataset for PyTorch'
-    def __init__(self, list_IDs, data_directory):
-        'Initialization'
+    def __init__(self, list_IDs, data_directory, transform=None):
+        super(Dataset, self).__init__()
         self.list_IDs = list_IDs
         self.data_directory = data_directory
+        self.transform = transform
 
     def __len__(self):
         'Denotes the total number of samples'
@@ -30,8 +31,12 @@ class Dataset(torch.utils.data.Dataset):
         # Convert to PyTorch tensors
         X = torch.from_numpy(filtered_img.get_fdata()).float()
         Y = torch.from_numpy(unfiltered_img.get_fdata()).float()
+        subject_folder = torch.from_numpy(np.array(subject_folder))
 
-        return X, Y, subject_folder
+        if self.transform:
+                X = self.transform(X)
+                
+        return X.unsqueeze(dim=0), Y.unsqueeze(dim=0), subject_folder
 
 
 def prepare_data(data_folder):
