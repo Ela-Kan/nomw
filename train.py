@@ -126,8 +126,3 @@ for epoch in range(num_epochs):
         "[Epoch %d/%d] [train - D loss: %f] [train - G loss: %f] [val - D loss: %f]"
         % (epoch, num_epochs, d_loss.item(), g_loss.item(), val_avg_d_loss.item())
     )
-
-<<<<<<< HEAD
-   
-=======
->>>>>>> bf5530964d3447cd2155983c5012a9ee40f5be31
