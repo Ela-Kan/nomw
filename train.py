@@ -39,15 +39,9 @@ val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=True)
 
 intensity_transform = Compose([
     ToNumpy(),
-    RandShiftIntensity(offsets=100, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
-    RandBiasField(degree = 2, prob = 1),
-    RandScaleIntensity(factors=0.5, prob = 1),
-    RandAdjustContrast(gamma = 2, prob = 1)])
-
-# Apply augmentation to training set (only the filtered images)
-for i, (filtered_images, unfiltered_images, subject_ids) in enumerate(train_dataloader):
-    filtered_images = intensity_transform(filtered_images)
-    break # only need to do this once
+    RandShiftIntensity(offsets=20, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
+    RandAdjustContrast(gamma = 1.05, prob = 1)
+])
 
 
 num_subjects = len(subject_ids)
