@@ -6,27 +6,19 @@ from torchvision.transforms import v2
 from torch.autograd import Variable
 from generator import Generator
 from Discriminator import Discriminator
-from utils import wasserstein_loss, transform_V
+from utils import wasserstein_loss, transform_Vtensor, itransform_Vtensor
 from Data_Loader import Dataset, prepare_data
 import matplotlib.pyplot as plt
 from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScaleIntensity, RandAdjustContrast, ToNumpy
 
+flag_FT = False
+flag_augmentation = False
 batch_size = 8
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-# Create DataLoader
-subject_ids = prepare_data('data\mni')
-dataset = Dataset(subject_ids[:10], 'data\mni', is_motion_corrected=True)
-# =============================================================================
-# Split into (training and validation datasets
-# =============================================================================
-generator = torch.Generator()
-generator.manual_seed(0)
-
-num_training_subjects = int(0.8*len(dataset))
-num_val_subjects = len(dataset) - num_training_subjects
-train_set, val_set = random_split(dataset, [num_training_subjects, num_val_subjects], generator=generator)
-
+# Create train and validation datasets and dataloaders
+train_set = Dataset(prepare_data('data\mni_train'), 'data\mni_train', is_motion_corrected=True)
+val_set = Dataset(prepare_data('data\mni_val'), 'data\mni_val', is_motion_corrected=True)
 print(f"Number of training subjects: {len(train_set)}. Number of validation subjects: {len(val_set)}.")
 
 train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
@@ -36,15 +28,13 @@ val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=True)
 
 """NOTE: The following transformations must be applied to a np array, but they output tensors
 """
-
 intensity_transform = Compose([
     ToNumpy(),
     RandShiftIntensity(offsets=20, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
     RandAdjustContrast(gamma = 1.05, prob = 1)
 ])
 
-
-num_subjects = len(subject_ids)
+num_subjects = len(train_set)
 generator = Generator(num_subjects=num_subjects).to(device)
 discriminator = Discriminator(num_subjects=num_subjects).to(device)
 
@@ -68,30 +58,34 @@ optimizer_D = optim.Adam(gan.discriminator.parameters(), lr=0.0002, betas=(0.5, 
 # Training loop
 num_epochs = 10
 for epoch in range(num_epochs):
-    for i, (filtered_images, unfiltered_images, subject_ids) in enumerate(train_dataloader):
+    for i, (filtered_images, unfiltered_images, train_subject_ids) in enumerate(train_dataloader):
         
         # move all data to deice
         filtered_images = filtered_images.to(device)
         unfiltered_images = unfiltered_images.to(device)
-        subject_ids = subject_ids.to(device)
+        train_subject_ids = train_subject_ids.to(device)
         
         # Adversarial ground truths
         is_real = Variable(torch.ones(len(unfiltered_images), 1))
         is_fake = Variable(torch.zeros(len(unfiltered_images), 1))
 
         # Optional: Apply FT
+        if flag_FT:
+            for aux_batch in range(filtered_images.shape[0]):
+                filtered_images[aux_batch,:,:,:] = transform_Vtensor(filtered_images[aux_batch,:,:,:])
+                unfiltered_images[aux_batch,:,:,:] = unfiltered_images(unfiltered_images[aux_batch,:,:,:])
         
         # Train Generator
         optimizer_G.zero_grad()
-        gen_images = gan.generator(filtered_images, subject_ids)
-        g_loss = -wasserstein_loss(gan.discriminator(gen_images, subject_ids), is_real) # negative for real loss, since aiming to minimise
+        gen_images = gan.generator(filtered_images, train_subject_ids)
+        g_loss = -wasserstein_loss(gan.discriminator(gen_images, train_subject_ids), is_real) # negative for real loss, since aiming to minimise
         g_loss.backward()
         optimizer_G.step()
 
         # Train Discriminator
         optimizer_D.zero_grad()
-        real_loss = -wasserstein_loss(gan.discriminator(unfiltered_images, subject_ids), is_real) # negative for real loss, since aiming to minimise
-        fake_loss = wasserstein_loss(gan.discriminator(gen_images.detach(), subject_ids), is_fake)
+        real_loss = -wasserstein_loss(gan.discriminator(unfiltered_images, train_subject_ids), is_real) # negative for real loss, since aiming to minimise
+        fake_loss = wasserstein_loss(gan.discriminator(gen_images.detach(), train_subject_ids), is_fake)
         d_loss = (real_loss + fake_loss) / 2
         d_loss.backward()
         optimizer_D.step()
@@ -116,7 +110,7 @@ for epoch in range(num_epochs):
                 val_is_fake = Variable(torch.zeros(len(val_unfiltered_images), 1))
                 val_gen_images = gan.generator(val_filtered_images, val_subject_ids)
                 
-                val_real_loss = -wasserstein_loss(gan.discriminator(val_unfiltered_images, val_subject_ids), val_subject_ids) # negative for real loss, since aiming to minimise
+                val_real_loss = -wasserstein_loss(gan.discriminator(val_unfiltered_images, val_subject_ids), val_is_real) # negative for real loss, since aiming to minimise
                 val_fake_loss = wasserstein_loss(gan.discriminator(val_gen_images.detach(), val_subject_ids), val_is_fake)
                 val_d_loss = (val_real_loss + val_fake_loss) / 2
                 total_d_val_loss += val_d_loss.item()
@@ -125,8 +119,8 @@ for epoch in range(num_epochs):
         val_avg_d_loss = total_d_val_loss / len(val_dataloader)
     
     if epoch % 2 == 0:
-        plt.imsave(f'generated_images/sub_{subject_ids[0]}_epoch_{epoch:02d}.png', gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray')
+        plt.imsave(f'generated_images/sub_{train_subject_ids[0]}_epoch_{epoch:02d}.png', gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray')
     print(
         "[Epoch %d/%d] [train - D loss: %f] [train - G loss: %f] [val - D loss: %f]"
-        % (epoch, num_epochs, d_loss.item(), g_loss.item(), val_avg_d_loss.item())
+        % (epoch, num_epochs, d_loss.item(), g_loss.item(), val_avg_d_loss)
     )
