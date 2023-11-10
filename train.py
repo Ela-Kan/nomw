@@ -9,6 +9,7 @@ from Discriminator import Discriminator
 from utils import wasserstein_loss, transform_V
 from Data_Loader import Dataset, prepare_data
 import matplotlib.pyplot as plt
+from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScaleIntensity, RandAdjustContrast
 
 batch_size = 8
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -16,15 +17,15 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Define your transformations accordingly
 
-# transform = v2.Compose([
-#     # v2.RandomApply([v2.GaussianNoise(var_limit=(0, 0.1))], p=0.5),
-#     v2.RandomApply([v2.RandomAdjustSharpness(sharpness_factor=(0.5, 1.5))], p=0.5),
-#     # v2.RandomApply([v2.RandomAdjustContrast(contrast_factor=(0.5, 1.5))], p=0.5),
-#     # v2.RandomApply([v2.RandomAdjustBrightness(brightness_factor=(0.5, 1.5))], p=0.5),
-#     # v2.RandomApply([v2.RandomGamma()], p=0.5),
-#     v2.RandomApply([v2.GaussianBlur(kernel_size=(3, 5))], p=0.5),
-#  ])
+"""NOTE: The following transformations must be applied to a np array, but they output tensors
+intensity_transform = Compose([
+    RandShiftIntensity(offsets=100, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
+    RandBiasField(degree = 2, prob = 1),
+    RandScaleIntensity(factors=0.5, prob = 1),
+    RandAdjustContrast(gamma = 2, prob = 1)
+])
 
+"""
 # Create DataLoader
 subject_ids = prepare_data('data\mni')
 dataset = Dataset([subject_ids[:10]], 'data\mni', is_motion_corrected=True)
