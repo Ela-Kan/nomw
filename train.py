@@ -105,6 +105,11 @@ for epoch in range(num_epochs):
         with torch.no_grad():  # Disable gradient computation during validation
             for (val_filtered_images, val_unfiltered_images, val_subject_ids) in val_dataloader:
                 
+                # move to device
+                val_filtered_images = val_filtered_images.to(device)
+                val_unfiltered_images = val_unfiltered_images.to(device)
+                val_subject_ids = val_subject_ids.to(device)
+                        
                 val_is_real = Variable(torch.ones(len(val_unfiltered_images), 1))
                 val_is_fake = Variable(torch.zeros(len(val_unfiltered_images), 1))
                 val_gen_images = gan.generator(val_filtered_images, val_subject_ids)
