@@ -13,13 +13,27 @@ from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScal
 
 flag_FT = False
 flag_augmentation = False
-batch_size = 8
+batch_size = 2
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+# Check if CUDA is available
+if torch.cuda.is_available():
+    # Get the number of available GPUs
+    num_gpus = torch.cuda.device_count()
+
+    print(f"Number of available GPUs: {num_gpus}")
+
+    # Print information about each GPU
+    for i in range(num_gpus):
+        gpu_name = torch.cuda.get_device_name(i)
+        print(f"GPU {i}: {gpu_name}")
+else:
+    print("CUDA is not available on this machine.")
 
 # Create train and validation datasets and dataloaders
 train_set = Dataset(prepare_data('data\mni_train'), 'data\mni_train', is_motion_corrected=True)
 val_set = Dataset(prepare_data('data\mni_val'), 'data\mni_val', is_motion_corrected=True)
-print(f"Number of training subjects: {len(train_set)}. Number of validation subjects: {len(val_set)}.")
+print(f"Number of training volumes: {len(train_set)}. Number of validation volumes: {len(val_set)}.")
 
 train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
 val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=True)
@@ -56,32 +70,34 @@ optimizer_G = optim.Adam(gan.generator.parameters(), lr=0.0002, betas=(0.5, 0.99
 optimizer_D = optim.Adam(gan.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
 # Training loop
-num_epochs = 10
+num_epochs = 30
+
 for epoch in range(num_epochs):
     for i, (filtered_images, unfiltered_images, train_subject_ids) in enumerate(train_dataloader):
         
-        # move all data to deice
-        filtered_images = filtered_images.to(device)
-        unfiltered_images = unfiltered_images.to(device)
-        train_subject_ids = train_subject_ids.to(device)
-        
-        # Adversarial ground truths
-        is_real = Variable(torch.ones(len(unfiltered_images), 1))
-        is_fake = Variable(torch.zeros(len(unfiltered_images), 1))
-
-        # if augmentation is enabled, apply it to the filtered images
         if flag_augmentation:
-                filtered_images = intensity_transform(filtered_images)
-
+            # if augmentation is enabled, apply it to the filtered images
+            filtered_images = intensity_transform(filtered_images)
+        
         # Optional: Apply FT
         if flag_FT:
             # for aux_batch in range(filtered_images.shape[0]):
             filtered_images= transform_Vtensor(filtered_images)
             unfiltered_images = transform_Vtensor(unfiltered_images)
     
+        # move all data to device
+        filtered_images = filtered_images.to(device)
+        unfiltered_images = unfiltered_images.to(device)
+        train_subject_ids = train_subject_ids.to(device)
+        
+        # Adversarial ground truths
+        is_real = Variable(torch.ones(len(unfiltered_images), 1)).to(device)
+        is_fake = Variable(torch.zeros(len(unfiltered_images), 1)).to(device)
+    
         # Train Generator
         optimizer_G.zero_grad()
         gen_images = gan.generator(filtered_images, train_subject_ids)
+        
         g_loss = -wasserstein_loss(gan.discriminator(gen_images, train_subject_ids), is_real) # negative for real loss, since aiming to minimise
         g_loss.backward()
         optimizer_G.step()
@@ -105,19 +121,20 @@ for epoch in range(num_epochs):
         with torch.no_grad():  # Disable gradient computation during validation
             for (val_filtered_images, val_unfiltered_images, val_subject_ids) in val_dataloader:
                 
-                # move to device
-                val_filtered_images = val_filtered_images.to(device)
-                val_unfiltered_images = val_unfiltered_images.to(device)
-                val_subject_ids = val_subject_ids.to(device)
-                     
                 # Apply FT
                 if flag_FT:
                     # for aux_batch in range(filtered_images.shape[0]):
                     val_filtered_images= transform_Vtensor(val_filtered_images)
                     val_unfiltered_images = transform_Vtensor(val_unfiltered_images)
             
-                val_is_real = Variable(torch.ones(len(val_unfiltered_images), 1))
-                val_is_fake = Variable(torch.zeros(len(val_unfiltered_images), 1))
+                # move to device
+                val_filtered_images = val_filtered_images.to(device)
+                val_unfiltered_images = val_unfiltered_images.to(device)
+                val_subject_ids = val_subject_ids.to(device)
+                     
+                val_is_real = Variable(torch.ones(len(val_unfiltered_images), 1)).to(device)
+                val_is_fake = Variable(torch.zeros(len(val_unfiltered_images), 1)).to(device)
+                
                 val_gen_images = gan.generator(val_filtered_images, val_subject_ids)
                 
                 # compute validation discriminator loss

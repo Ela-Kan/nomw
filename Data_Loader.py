@@ -66,7 +66,7 @@ def prepare_data(data_folder):
             num_timepoints = nib.load(glob.glob(os.path.join(subject_path, 'DCE_4D_*.nii.gz'))[0]).shape[-1] # doesnt matter which file, bc same size
             
             # Generate identifiers for each timepoint
-            for timepoint in range(0,num_timepoints,3):
+            for timepoint in range(0,num_timepoints,15):
                 id = f'{subject_folder}_{timepoint}'
                 list_IDs.append(id)
                 
