@@ -9,7 +9,7 @@ from Discriminator import Discriminator
 from utils import wasserstein_loss, transform_Vtensor, itransform_Vtensor
 from Data_Loader import Dataset, prepare_data
 import matplotlib.pyplot as plt
-# from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScaleIntensity, RandAdjustContrast, ToNumpy
+from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScaleIntensity, RandAdjustContrast, ToNumpy
 
 flag_FT = False
 flag_augmentation = False
@@ -28,19 +28,11 @@ val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=True)
 
 """NOTE: The following transformations must be applied to a np array, but they output tensors
 """
-# if flag_augmentation:
-    
-# intensity_transform = Compose([
-#     ToNumpy(),
-#     RandShiftIntensity(offsets=100, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
-#     RandBiasField(degree = 2, prob = 1),
-#     RandScaleIntensity(factors=0.5, prob = 1),
-#     RandAdjustContrast(gamma = 2, prob = 1)])
-
-# Apply augmentation to training set (only the filtered images)
-# for i, (filtered_images, unfiltered_images, train_subject_ids) in enumerate(train_dataloader):
-#     filtered_images = intensity_transform(filtered_images)
-#     break # only need to do this once
+intensity_transform = Compose([
+    ToNumpy(),
+    RandShiftIntensity(offsets=20, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
+    RandAdjustContrast(gamma = 1.05, prob = 1)
+])
 
 num_subjects = len(train_set)
 generator = Generator(num_subjects=num_subjects).to(device)
@@ -76,6 +68,10 @@ for epoch in range(num_epochs):
         # Adversarial ground truths
         is_real = Variable(torch.ones(len(unfiltered_images), 1))
         is_fake = Variable(torch.zeros(len(unfiltered_images), 1))
+
+        # if augmentation is enabled, apply it to the filtered images
+        if flag_augmentation:
+                filtered_images = intensity_transform(filtered_images)
 
         # Optional: Apply FT
         if flag_FT:
