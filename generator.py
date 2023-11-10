@@ -78,7 +78,7 @@ class Generator(nn.Module):
         subject_embedding = self.embedding(subject_id)
         subject_embedding = subject_embedding.view(subject_embedding.size(0), subject_embedding.size(1), 1, 1, 1)
         subject_embedding = subject_embedding.expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
-        x = torch.cat([x, subject_embedding], dim=1)
+        x = torch.cat([inputs, subject_embedding], dim=1)
         x1 = self.encoder(x)
         x2 = self.bottleneck(x1)
         out = self.decoder(x2)
