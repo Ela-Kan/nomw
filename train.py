@@ -11,6 +11,8 @@ from Data_Loader import Dataset, prepare_data
 import matplotlib.pyplot as plt
 
 batch_size = 16
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 # Define your transformations accordingly
 
@@ -29,8 +31,8 @@ dataset = Dataset(subject_ids, 'data/mni', is_motion_corrected=True)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 num_subjects = len(subject_ids)
-generator = Generator(num_subjects=num_subjects)
-discriminator = Discriminator(num_subjects=num_subjects)
+generator = Generator(num_subjects=num_subjects).to(device)
+discriminator = Discriminator(num_subjects=num_subjects).to(device)
 
 class GAN(nn.Module):
     def __init__(self, generator, discriminator):
@@ -43,18 +45,22 @@ class GAN(nn.Module):
         discriminator_output = self.discriminator(generated_images, subject_id)
         return generated_images, discriminator_output
 
-gan = GAN(generator, discriminator)
+gan = GAN(generator, discriminator).to(device)
 
 # Define the optimizers
 optimizer_G = optim.Adam(gan.generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 optimizer_D = optim.Adam(gan.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
 # Training loop
-num_epochs = 100
+num_epochs = 10
 for epoch in range(num_epochs):
     for i, (filtered_images, unfiltered_images, subject_ids) in enumerate(dataloader):
         
-        print(filtered_images.shape)       
+        # move all data to deice
+        filtered_images = filtered_images.to(device)
+        unfiltered_images = unfiltered_images.to(device)
+        subject_ids = subject_ids.to(device)
+        
         # Adversarial ground truths
         is_real = Variable(torch.ones(len(dataset), 1))
         is_fake = Variable(torch.zeros(len(dataset), 1))

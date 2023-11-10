@@ -9,9 +9,6 @@ import cv2
 import numpy as np
 # import matplotlib.pyplot as plt
 
-# Load the 3D brain volume
-volume = cv2.imread('path_to_your_3d_volume.nii', cv2.IMREAD_GRAYSCALE)
-
 def transform_I(volume):
     # applies 2DFT of the log of the image
     
@@ -38,7 +35,7 @@ def transform_I(volume):
         
         return magnitude_spectrum
 
-def itransform_I(magnitude_spectrum):
+def itransform_I(volume, magnitude_spectrum):
     # Iterate over slices
     for slice_idx in range(volume.shape[2]):
         # restores the volume to the original image space
