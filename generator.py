@@ -25,17 +25,17 @@ class Generator(nn.Module):
 
     def __init__(self, 
                  in_channels: int = 1, 
-                 embedding_dim: int=16,
+                #  embedding_dim: int=16,
                  out_channels: int=1,
                  num_subjects: int = 10) -> None:
         
         super(Generator, self).__init__()
         self.in_channels = in_channels
 
-        self.embedding = nn.Embedding(num_subjects, embedding_dim)
+        # self.embedding = nn.Embedding(num_subjects, embedding_dim)
 
         self.encoder = nn.Sequential(
-                    nn.Conv3d(in_channels + embedding_dim, 64, kernel_size=3, padding=1),
+                    nn.Conv3d(in_channels, 64, kernel_size=3, padding=1),
                     nn.ReLU(inplace=True),
                     nn.Conv3d(64, 128, kernel_size=3, padding=1),
                     nn.ReLU(inplace=True),
@@ -75,11 +75,11 @@ class Generator(nn.Module):
             A four-dimensional vector (N*C*H*W).
         """
         
-        subject_embedding = self.embedding(subject_id)
-        subject_embedding = subject_embedding.view(subject_embedding.size(0), subject_embedding.size(1), 1, 1, 1)
-        subject_embedding = subject_embedding.expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
-        x = torch.cat([inputs, subject_embedding], dim=1)
-        x1 = self.encoder(x)
+        # subject_embedding = self.embedding(subject_id)
+        # subject_embedding = subject_embedding.view(subject_embedding.size(0), subject_embedding.size(1), 1, 1, 1)
+        # subject_embedding = subject_embedding.expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
+        # x = torch.cat([inputs, subject_embedding], dim=1)
+        x1 = self.encoder(inputs)
         x2 = self.bottleneck(x1)
         out = self.decoder(x2)
         

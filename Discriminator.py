@@ -19,15 +19,15 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv3d(256, 1, kernel_size=4, stride=2, padding=1),
         )
-        self.condition_embedding = nn.Embedding(num_subjects, 256)
-        self.condition_linear = nn.Linear(256, 1)
+        # self.condition_embedding = nn.Embedding(num_subjects, 256)
+        # self.condition_linear = nn.Linear(5, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x, subject_ids):
         x = self.image_branch(x)
-        condition = self.condition_embedding(subject_ids)
-        condition = self.condition_linear(condition)
+        # condition = self.condition_embedding(subject_ids)
+        # condition = self.condition_linear(condition)
         x = x.view(x.size(0), -1)
-        x = torch.cat([x, condition], dim=1)
+        # x = torch.cat([x, condition], dim=1)
         x = self.sigmoid(x)
         return x
