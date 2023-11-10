@@ -31,12 +31,19 @@ intensity_transform = Compose([
 subject_ids = prepare_data('data\mni')
 dataset = Dataset([subject_ids[:10]], 'data\mni', is_motion_corrected=True)
 
+
+
+
 # =============================================================================
 # Split into (training and validation datasets
 # =============================================================================
-train_set, val_set = random_split(dataset, [0.8, 0.2], generator=torch.Generator.manual_seed(seed=0))
+generator = torch.Generator()
+generator.manual_seed(0)
+
+train_set, val_set = random_split(dataset, [0.8, 0.2], generator=generator)
 train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
 val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=True)
+
 
 num_subjects = len(subject_ids)
 generator = Generator(num_subjects=num_subjects).to(device)
@@ -120,4 +127,7 @@ for epoch in range(num_epochs):
         % (epoch, num_epochs, d_loss.item(), g_loss.item(), val_avg_d_loss.item())
     )
 
+<<<<<<< HEAD
    
+=======
+>>>>>>> bf5530964d3447cd2155983c5012a9ee40f5be31
