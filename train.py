@@ -29,7 +29,7 @@ intensity_transform = Compose([
 
 # Create DataLoader
 subject_ids = prepare_data('data\mni')
-dataset = Dataset([subject_ids[:10]], 'data\mni', is_motion_corrected=True)
+dataset = Dataset(subject_ids[:10], 'data\mni', is_motion_corrected=True)
 
 # =============================================================================
 # Split into (training and validation datasets
@@ -37,10 +37,14 @@ dataset = Dataset([subject_ids[:10]], 'data\mni', is_motion_corrected=True)
 generator = torch.Generator()
 generator.manual_seed(0)
 
-train_set, val_set = random_split(dataset, [0.8, 0.2], generator=generator)
-train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
-val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=True)
+num_training_subjects = int(0.8*len(dataset))
+num_val_subjects = len(dataset) - num_training_subjects
+train_set, val_set = random_split(dataset, [num_training_subjects, num_val_subjects], generator=generator)
 
+print(f"Number of training subjects: {len(train_set)}. Number of validation subjects: {len(val_set)}.")
+
+train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+val_dataloader = DataLoader(val_set, batch_size=batch_size)
 
 num_subjects = len(subject_ids)
 generator = Generator(num_subjects=num_subjects).to(device)
