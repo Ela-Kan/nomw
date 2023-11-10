@@ -9,18 +9,18 @@ class Discriminator(nn.Module):
         
         super(Discriminator, self).__init__()
         self.image_branch = nn.Sequential(
-            nn.Conv2d(img_channels, 64, kernel_size=4, stride=2, padding=1),
+            nn.Conv3d(img_channels, 64, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1), 
-            nn.BatchNorm2d(128),
+            nn.Conv3d(64, 128, kernel_size=4, stride=2, padding=1), 
+            nn.BatchNorm3d(128),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(256),
+            nn.Conv3d(128, 256, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm3d(256),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(256, 1, kernel_size=4, stride=2, padding=1),
+            nn.Conv3d(256, 1, kernel_size=4, stride=2, padding=1),
         )
         self.condition_embedding = nn.Embedding(num_subjects, 256)
-        self.condition_linear = nn.Linear(256, 1)
+        self.condition_linear = nn.Linear(257, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x, subject_ids):
