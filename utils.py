@@ -71,6 +71,25 @@ def transform_V(volume):
 
     return magnitude_spectrum
 
+def transform_Vtensor(volume):
+    # Ensure the input volume is a PyTorch tensor
+    volume = torch.tensor(volume, dtype=torch.float32)
+
+    # Apply 3D Fourier Transform of the log of the volume
+    f_transform = torch.fft.fftn(torch.log1p(volume))
+
+    # Shift the zero frequency component to the center
+    f_transform_shifted = torch.fft.fftshift(f_transform)
+
+    # Calculate the magnitude spectrum
+    magnitude_spectrum = torch.abs(f_transform_shifted)
+
+    return magnitude_spectrum
+
+
+
+
+
 def itransform_V(magnitude_spectrum):
     # restores the volume to the original image space
     # Inverse 3D Fourier Transform
@@ -79,16 +98,19 @@ def itransform_V(magnitude_spectrum):
 
     # Exponential to undo the logarithm
     reconstructed_volume = np.expm1(np.real(f_transform_inverse))
+    return reconstructed_volume
 
-    # # Display the original and reconstructed volumes
-    # # Note: You may need to adjust the visualization based on the 3D nature
-    # plt.subplot(121), plt.imshow(np.log1p(magnitude_spectrum[:, :, volume.shape[2] // 2]), cmap='gray')
-    # plt.title('3D Fourier Transform Volume'), plt.xticks([]), plt.yticks([])
 
-    # plt.subplot(122), plt.imshow(reconstructed_volume[:, :, volume.shape[2] // 2], cmap='gray')
-    # plt.title('Reconstructed Volume'), plt.xticks([]), plt.yticks([])
+def itransform_Vtensor(magnitude_spectrum):
+    # Ensure the input magnitude_spectrum is a PyTorch tensor
+    magnitude_spectrum = torch.tensor(magnitude_spectrum, dtype=torch.float32)
 
-    # plt.show()
+    # Inverse Fourier Transform
+    f_transform_shifted_inverse = torch.fft.ifftshift(magnitude_spectrum)
+    f_transform_inverse = torch.fft.ifftn(f_transform_shifted_inverse)
+
+    # Exponential to undo the logarithm
+    reconstructed_volume = torch.expm1(f_transform_inverse.real)
 
     return reconstructed_volume
 
