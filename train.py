@@ -31,9 +31,6 @@ intensity_transform = Compose([
 subject_ids = prepare_data('data\mni')
 dataset = Dataset([subject_ids[:10]], 'data\mni', is_motion_corrected=True)
 
-
-
-
 # =============================================================================
 # Split into (training and validation datasets
 # =============================================================================
