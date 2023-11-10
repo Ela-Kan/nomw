@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from torchvision.transforms import v2
 from torch.autograd import Variable
 from generator import Generator
@@ -10,7 +10,7 @@ from utils import wasserstein_loss, transform_V
 from Data_Loader import Dataset, prepare_data
 import matplotlib.pyplot as plt
 
-batch_size = 16
+batch_size = 8
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -26,9 +26,15 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #  ])
 
 # Create DataLoader
-subject_ids = prepare_data('data/mni')
-dataset = Dataset(subject_ids, 'data/mni', is_motion_corrected=True)
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+subject_ids = prepare_data('data\mni')
+dataset = Dataset([subject_ids[:10]], 'data\mni', is_motion_corrected=True)
+
+# =============================================================================
+# Split into (training and validation datasets
+# =============================================================================
+train_set, val_set = random_split(dataset, [0.8, 0.2], generator=torch.Generator.manual_seed(0))
+train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=True)
 
 num_subjects = len(subject_ids)
 generator = Generator(num_subjects=num_subjects).to(device)
@@ -54,7 +60,7 @@ optimizer_D = optim.Adam(gan.discriminator.parameters(), lr=0.0002, betas=(0.5, 
 # Training loop
 num_epochs = 10
 for epoch in range(num_epochs):
-    for i, (filtered_images, unfiltered_images, subject_ids) in enumerate(dataloader):
+    for i, (filtered_images, unfiltered_images, subject_ids) in enumerate(train_dataloader):
         
         # move all data to deice
         filtered_images = filtered_images.to(device)
@@ -62,14 +68,16 @@ for epoch in range(num_epochs):
         subject_ids = subject_ids.to(device)
         
         # Adversarial ground truths
-        is_real = Variable(torch.ones(len(dataset), 1))
-        is_fake = Variable(torch.zeros(len(dataset), 1))
+        is_real = Variable(torch.ones(len(unfiltered_images), 1))
+        is_fake = Variable(torch.zeros(len(unfiltered_images), 1))
 
         # Optional: Apply FT
         
         # Train Generator
         optimizer_G.zero_grad()
         gen_images = gan.generator(filtered_images, subject_ids)
+        # print(gen_images.shape)
+        # print(plt.imshow(gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray'))
         g_loss = -wasserstein_loss(gan.discriminator(gen_images, subject_ids), is_real) # negative for real loss, since aiming to minimise
         g_loss.backward()
         optimizer_G.step()
@@ -86,8 +94,9 @@ for epoch in range(num_epochs):
         for param in gan.discriminator.parameters():
             param.data.clamp_(-0.01, 0.01)
 
-        if i % 10 == 0:
-            print(
-                "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]"
-                % (epoch, num_epochs, i, len(dataloader), d_loss.item(), g_loss.item())
-            )
+    if epoch % 2 == 0:
+        plt.imsave(f'gen_epoch_{epoch:02d}.png', gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray')
+    print(
+        "[Epoch %d/%d] [D loss: %f] [G loss: %f]"
+        % (epoch, num_epochs, d_loss.item(), g_loss.item())
+    )
