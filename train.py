@@ -6,11 +6,13 @@ from torchvision.transforms import v2
 from torch.autograd import Variable
 from generator import Generator
 from Discriminator import Discriminator
-from utils import wasserstein_loss, transform_V
+from utils import wasserstein_loss, transform_Vtensor, itransform_Vtensor
 from Data_Loader import Dataset, prepare_data
 import matplotlib.pyplot as plt
-from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScaleIntensity, RandAdjustContrast, ToNumpy
+# from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScaleIntensity, RandAdjustContrast, ToNumpy
 
+flag_FT = True
+flag_augmentation = False
 batch_size = 8
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -19,13 +21,14 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 """NOTE: The following transformations must be applied to a np array, but they output tensors
 """
-
-intensity_transform = Compose([
-    ToNumpy(),
-    RandShiftIntensity(offsets=100, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
-    RandBiasField(degree = 2, prob = 1),
-    RandScaleIntensity(factors=0.5, prob = 1),
-    RandAdjustContrast(gamma = 2, prob = 1)])
+# if flag_augmentation:
+    
+# intensity_transform = Compose([
+#     ToNumpy(),
+#     RandShiftIntensity(offsets=100, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
+#     RandBiasField(degree = 2, prob = 1),
+#     RandScaleIntensity(factors=0.5, prob = 1),
+#     RandAdjustContrast(gamma = 2, prob = 1)])
 
 # Create DataLoader
 subject_ids = prepare_data('data\mni')
@@ -78,6 +81,10 @@ for epoch in range(num_epochs):
         is_fake = Variable(torch.zeros(len(unfiltered_images), 1))
 
         # Optional: Apply FT
+        if flag_FT:
+            for aux_batch in range(filtered_images.shape()[0]):
+                filtered_images[aux_batch,:,:,:] = transform_Vtensor(filtered_images[aux_batch,:,:,:])
+                unfiltered_images[aux_batch,:,:,:] = unfiltered_images(unfiltered_images[aux_batch,:,:,:])
         
         # Train Generator
         optimizer_G.zero_grad()
