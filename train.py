@@ -17,12 +17,12 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Define your transformations accordingly
 
-"""NOTE: The following transformations must be applied to a np array, but they output tensors
+"""NOTE: The following transformations must be applied to a np array, but they output tensors. adjust prob
 intensity_transform = Compose([
-    RandShiftIntensity(offsets=100, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
-    RandBiasField(degree = 2, prob = 1),
-    RandScaleIntensity(factors=0.5, prob = 1),
-    RandAdjustContrast(gamma = 2, prob = 1)
+    RandShiftIntensity(offsets=100, prob = 0.2),  # Adjust intensity by scaling with a factor of 1.5
+    RandBiasField(degree = 2, prob = 0.2),
+    RandScaleIntensity(factors=0.5, prob = 0.2),
+    RandAdjustContrast(gamma = 2, prob = 0.2)
 ])
 
 """
