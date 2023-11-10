@@ -69,6 +69,10 @@ for epoch in range(num_epochs):
         is_real = Variable(torch.ones(len(unfiltered_images), 1))
         is_fake = Variable(torch.zeros(len(unfiltered_images), 1))
 
+        # if augmentation is enabled, apply it to the filtered images
+        if flag_augmentation:
+                filtered_images = intensity_transform(filtered_images)
+
         # Optional: Apply FT
         if flag_FT:
             for aux_batch in range(filtered_images.shape[0]):
