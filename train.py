@@ -75,10 +75,10 @@ for epoch in range(num_epochs):
 
         # Optional: Apply FT
         if flag_FT:
-            for aux_batch in range(filtered_images.shape[0]):
-                filtered_images[aux_batch,:,:,:] = transform_Vtensor(filtered_images[aux_batch,:,:,:])
-                unfiltered_images[aux_batch,:,:,:] = unfiltered_images(unfiltered_images[aux_batch,:,:,:])
-        
+            # for aux_batch in range(filtered_images.shape[0]):
+            filtered_images= transform_Vtensor(filtered_images)
+            unfiltered_images = transform_Vtensor(unfiltered_images)
+    
         # Train Generator
         optimizer_G.zero_grad()
         gen_images = gan.generator(filtered_images, train_subject_ids)
@@ -109,21 +109,33 @@ for epoch in range(num_epochs):
                 val_filtered_images = val_filtered_images.to(device)
                 val_unfiltered_images = val_unfiltered_images.to(device)
                 val_subject_ids = val_subject_ids.to(device)
-                        
+                     
+                # Apply FT
+                if flag_FT:
+                    # for aux_batch in range(filtered_images.shape[0]):
+                    val_filtered_images= transform_Vtensor(val_filtered_images)
+                    val_unfiltered_images = transform_Vtensor(val_unfiltered_images)
+            
                 val_is_real = Variable(torch.ones(len(val_unfiltered_images), 1))
                 val_is_fake = Variable(torch.zeros(len(val_unfiltered_images), 1))
                 val_gen_images = gan.generator(val_filtered_images, val_subject_ids)
                 
+                # compute validation discriminator loss
                 val_real_loss = -wasserstein_loss(gan.discriminator(val_unfiltered_images, val_subject_ids), val_is_real) # negative for real loss, since aiming to minimise
                 val_fake_loss = wasserstein_loss(gan.discriminator(val_gen_images.detach(), val_subject_ids), val_is_fake)
                 val_d_loss = (val_real_loss + val_fake_loss) / 2
                 total_d_val_loss += val_d_loss.item()
                 
+                # apply inverse fourier transform to generated validation images in image space
+                if flag_FT:
+                    val_gen_images_it = itransform_Vtensor(val_gen_images)
+                
+                
         # Calculate and print average validation loss
         val_avg_d_loss = total_d_val_loss / len(val_dataloader)
     
     if epoch % 2 == 0:
-        plt.imsave(f'generated_images/sub_{train_subject_ids[0]}_epoch_{epoch:02d}.png', gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray')
+        plt.imsave(f'generated_images/sub_{val_subject_ids[0]}_epoch_{epoch:02d}.png', val_gen_images_it[0,:,:,:,45].detach().numpy()[0] if flag_FT else val_gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray')
     print(
         "[Epoch %d/%d] [train - D loss: %f] [train - G loss: %f] [val - D loss: %f]"
         % (epoch, num_epochs, d_loss.item(), g_loss.item(), val_avg_d_loss)
