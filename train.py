@@ -11,8 +11,24 @@ from Data_Loader import Dataset, prepare_data
 import matplotlib.pyplot as plt
 
 batch_size = 16
-num_subjects = 1 
 
+# Define your transformations accordingly
+
+# transform = v2.Compose([
+#     # v2.RandomApply([v2.GaussianNoise(var_limit=(0, 0.1))], p=0.5),
+#     v2.RandomApply([v2.RandomAdjustSharpness(sharpness_factor=(0.5, 1.5))], p=0.5),
+#     # v2.RandomApply([v2.RandomAdjustContrast(contrast_factor=(0.5, 1.5))], p=0.5),
+#     # v2.RandomApply([v2.RandomAdjustBrightness(brightness_factor=(0.5, 1.5))], p=0.5),
+#     # v2.RandomApply([v2.RandomGamma()], p=0.5),
+#     v2.RandomApply([v2.GaussianBlur(kernel_size=(3, 5))], p=0.5),
+#  ])
+
+# Create DataLoader
+subject_ids = prepare_data('data/mni')
+dataset = Dataset(subject_ids, 'data/mni', is_motion_corrected=True)
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+num_subjects = len(subject_ids)
 generator = Generator(num_subjects=num_subjects)
 discriminator = Discriminator(num_subjects=num_subjects)
 
@@ -32,22 +48,6 @@ gan = GAN(generator, discriminator)
 # Define the optimizers
 optimizer_G = optim.Adam(gan.generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 optimizer_D = optim.Adam(gan.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
-
-# Define your transformations accordingly
-
-# transform = v2.Compose([
-#     # v2.RandomApply([v2.GaussianNoise(var_limit=(0, 0.1))], p=0.5),
-#     v2.RandomApply([v2.RandomAdjustSharpness(sharpness_factor=(0.5, 1.5))], p=0.5),
-#     # v2.RandomApply([v2.RandomAdjustContrast(contrast_factor=(0.5, 1.5))], p=0.5),
-#     # v2.RandomApply([v2.RandomAdjustBrightness(brightness_factor=(0.5, 1.5))], p=0.5),
-#     # v2.RandomApply([v2.RandomGamma()], p=0.5),
-#     v2.RandomApply([v2.GaussianBlur(kernel_size=(3, 5))], p=0.5),
-#  ])
-
-# Create DataLoader
-subject_ids = prepare_data('data/original')
-dataset = Dataset(subject_ids, 'data/original')
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # Training loop
 num_epochs = 100

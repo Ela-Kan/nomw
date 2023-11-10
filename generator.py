@@ -74,10 +74,10 @@ class Generator(nn.Module):
         Returns:
             A four-dimensional vector (N*C*H*W).
         """
-
+        
         subject_embedding = self.embedding(subject_id)
         subject_embedding = subject_embedding.view(subject_embedding.size(0), subject_embedding.size(1), 1, 1, 1)
-        subject_embedding = subject_embedding.expand(-1, -1, x.size(2), x.size(3), x.size(4))
+        subject_embedding = subject_embedding.expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
         x = torch.cat([x, subject_embedding], dim=1)
         x1 = self.encoder(x)
         x2 = self.bottleneck(x1)

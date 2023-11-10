@@ -33,16 +33,17 @@ class Dataset(torch.utils.data.Dataset):
         # Load the NIfTI files and extract the specific timepoint data
         filtered_img = nib.load(filtered_path).slicer[..., int(timepoint)]
         unfiltered_img = nib.load(unfiltered_path).slicer[..., int(timepoint)]
+        subject_id = int(subject_folder[-2:])
         
         # Convert to PyTorch tensors
         X = torch.from_numpy(filtered_img.get_fdata()).float()
         Y = torch.from_numpy(unfiltered_img.get_fdata()).float()
-        subject_folder = torch.from_numpy(np.array(subject_folder))
-
+        subject_id = torch.tensor(subject_id)
+        
         if self.transform:
                 X = self.transform(X)
-                
-        return X.unsqueeze(dim=0), Y.unsqueeze(dim=0), subject_folder
+        
+        return X.unsqueeze(dim=0), Y.unsqueeze(dim=0), subject_id
 
 
 def prepare_data(data_folder):
