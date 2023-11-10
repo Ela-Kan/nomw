@@ -123,7 +123,7 @@ for epoch in range(num_epochs):
         val_avg_d_loss = total_d_val_loss / len(val_dataloader)
     
     if epoch % 2 == 0:
-        plt.imsave(f'gen_epoch_{epoch:02d}.png', gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray')
+        plt.imsave(f'generated_images/sub_{subject_ids[0]}_epoch_{epoch:02d}.png', gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray')
     print(
         "[Epoch %d/%d] [train - D loss: %f] [train - G loss: %f] [val - D loss: %f]"
         % (epoch, num_epochs, d_loss.item(), g_loss.item(), val_avg_d_loss.item())
