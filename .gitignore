@@ -1,3 +1,4 @@
 data
 .DS_Store
 *.pyc
+generated_images
