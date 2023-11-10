@@ -72,9 +72,6 @@ def transform_V(volume):
     return magnitude_spectrum
 
 def transform_Vtensor(volume):
-    # Ensure the input volume is a PyTorch tensor
-    volume = torch.tensor(volume, dtype=torch.float32)
-
     # Apply 3D Fourier Transform of the log of the volume
     f_transform = torch.fft.fftn(torch.log1p(volume))
 
@@ -102,8 +99,6 @@ def itransform_V(magnitude_spectrum):
 
 
 def itransform_Vtensor(magnitude_spectrum):
-    # Ensure the input magnitude_spectrum is a PyTorch tensor
-    magnitude_spectrum = torch.tensor(magnitude_spectrum, dtype=torch.float32)
 
     # Inverse Fourier Transform
     f_transform_shifted_inverse = torch.fft.ifftshift(magnitude_spectrum)
