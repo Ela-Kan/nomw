@@ -9,7 +9,6 @@ import cv2
 import numpy as np
 # import matplotlib.pyplot as plt
 
-
 def transform_I(volume):
     # applies 2DFT of the log of the image
     
@@ -36,7 +35,7 @@ def transform_I(volume):
         
         return magnitude_spectrum
 
-def itransform_I(magnitude_spectrum):
+def itransform_I(volume, magnitude_spectrum):
     # Iterate over slices
     for slice_idx in range(volume.shape[2]):
         # restores the volume to the original image space
