@@ -20,7 +20,7 @@ class Discriminator(nn.Module):
             nn.Conv3d(256, 1, kernel_size=4, stride=2, padding=1),
         )
         self.condition_embedding = nn.Embedding(num_subjects, 256)
-        self.condition_linear = nn.Linear(257, 1)
+        self.condition_linear = nn.Linear(256, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x, subject_ids):
