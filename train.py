@@ -14,23 +14,9 @@ from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScal
 batch_size = 8
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
-# Define your transformations accordingly
-
-"""NOTE: The following transformations must be applied to a np array, but they output tensors
-"""
-
-intensity_transform = Compose([
-    ToNumpy(),
-    RandShiftIntensity(offsets=100, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
-    RandBiasField(degree = 2, prob = 1),
-    RandScaleIntensity(factors=0.5, prob = 1),
-    RandAdjustContrast(gamma = 2, prob = 1)])
-
 # Create DataLoader
 subject_ids = prepare_data('data\mni')
 dataset = Dataset(subject_ids[:10], 'data\mni', is_motion_corrected=True)
-
 # =============================================================================
 # Split into (training and validation datasets
 # =============================================================================
@@ -44,7 +30,25 @@ train_set, val_set = random_split(dataset, [num_training_subjects, num_val_subje
 print(f"Number of training subjects: {len(train_set)}. Number of validation subjects: {len(val_set)}.")
 
 train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
-val_dataloader = DataLoader(val_set, batch_size=batch_size)
+val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=True)
+
+# Apply augmentation to training set
+
+"""NOTE: The following transformations must be applied to a np array, but they output tensors
+"""
+
+intensity_transform = Compose([
+    ToNumpy(),
+    RandShiftIntensity(offsets=100, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
+    RandBiasField(degree = 2, prob = 1),
+    RandScaleIntensity(factors=0.5, prob = 1),
+    RandAdjustContrast(gamma = 2, prob = 1)])
+
+# Apply augmentation to training set (only the filtered images)
+for i, (filtered_images, unfiltered_images, subject_ids) in enumerate(train_dataloader):
+    filtered_images = intensity_transform(filtered_images)
+    break # only need to do this once
+
 
 num_subjects = len(subject_ids)
 generator = Generator(num_subjects=num_subjects).to(device)
