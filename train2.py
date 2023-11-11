@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import time
+import os
 from tqdm import tqdm
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
@@ -17,6 +18,10 @@ from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScal
 flag_FT = False
 flag_augmentation = False
 batch_size = 4
+
+flag_load_weights = True
+path_weights = 'resunet3d_weights.pth'
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Check if CUDA is available
@@ -65,6 +70,13 @@ out_channels = 1  # Number of output channels (e.g., denoised image)
 unet = ResUNet3D(in_channels, out_channels)
 unet.to(device)
 
+if flag_load_weights:
+    if os.path.exists(path_weights):
+        print(f"Loading the weights file '{path_weights}'.")
+        unet.load_state_dict(torch.load(path_weights))
+    else:
+        print(f"The weights file '{path_weights}' does not exist.")
+
 # Define loss function and optimizer
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(unet.parameters(), lr=0.001)
@@ -101,6 +113,11 @@ for epoch in range(num_epochs):
     
         # Forward pass
         denoised_images = unet(noisy_images)
+        
+        if False:
+            plt.imsave(f'generated_images/resunet_noisy_images_sub_epoch_{epoch:02d}.png', noisy_images[0,:,:,:,45].detach().cpu().numpy()[0], cmap='gray')
+            plt.imsave(f'generated_images/resunet_clean_images_sub_epoch_{epoch:02d}.png', clean_images[0,:,:,:,45].detach().cpu().numpy()[0], cmap='gray')
+            plt.imsave(f'generated_images/resunet_denoised_images_sub_epoch_{epoch:02d}.png', denoised_images[0,:,:,:,45].detach().cpu().numpy()[0], cmap='gray')
         
         # print("Output size:", denoised_images.size())
 
@@ -157,3 +174,7 @@ for epoch in range(num_epochs):
         plt.imsave(f'generated_images/resunet_noisy_images_sub_epoch_{epoch:02d}.png', noisy_images[0,:,:,:,45].detach().cpu().numpy()[0], cmap='gray')
         plt.imsave(f'generated_images/resunet_clean_images_sub_epoch_{epoch:02d}.png', clean_images[0,:,:,:,45].detach().cpu().numpy()[0], cmap='gray')
         plt.imsave(f'generated_images/resunet_denoised_images_sub_epoch_{epoch:02d}.png', denoised_images[0,:,:,:,45].detach().cpu().numpy()[0], cmap='gray')
+
+# Save the model weights
+torch.save(unet.state_dict(), 'resunet3d_weights.pth')
+
