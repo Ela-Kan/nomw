@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader, random_split
 from torchvision.transforms import v2
 from torch.autograd import Variable
-import argparse
+import argparse, os
 from generator import Generator
 from Discriminator import Discriminator
 from utils import wasserstein_loss, transform_Vtensor, itransform_Vtensor
@@ -14,11 +15,10 @@ from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScal
 
 def main(args):
     
-    
+    data_dir = args.data_dir
     flag_FT = args.fourier_transform
     flag_augmentation = args.aug
-    batch_size = 4
-    
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Check if CUDA is available
@@ -41,13 +41,16 @@ def main(args):
         print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
         
+    ## Define training variables
+    batch_size = 8
+     
     # Create train and validation datasets and dataloaders
-    train_set = Dataset(prepare_data('data\mni_train'), 'data\mni_train', is_motion_corrected=True)
-    val_set = Dataset(prepare_data('data\mni_val'), 'data\mni_val', is_motion_corrected=True)
+    train_set = Dataset(prepare_data(os.path.join(data_dir, 'mni_train')), os.path.join(data_dir, 'mni_train'), is_motion_corrected=True)
+    val_set = Dataset(prepare_data(os.path.join(data_dir, 'mni_val')), os.path.join(data_dir, 'mni_val'), is_motion_corrected=True)
     print(f"Number of training volumes: {len(train_set)}. Number of validation volumes: {len(val_set)}.")
 
     train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
-    val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=True)
+    val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
 
     # Apply augmentation to training set
 
@@ -55,35 +58,38 @@ def main(args):
     """
     intensity_transform = Compose([
         ToNumpy(),
-        RandShiftIntensity(offsets=20, prob = 1),  # Adjust intensity by scaling with a factor of 1.5
-        RandAdjustContrast(gamma = 1.05, prob = 1)
+        RandShiftIntensity(offsets=20, prob = 0.5),  # Adjust intensity by scaling with a factor of 1.5
+        RandAdjustContrast(gamma = 1.05, prob = 0.5)
     ])
 
     num_subjects = len(train_set)
     generator = Generator(num_subjects=num_subjects).to(device)
     discriminator = Discriminator(num_subjects=num_subjects).to(device)
 
-    class GAN(nn.Module):
-        def __init__(self, generator, discriminator):
-            super(GAN, self).__init__()
-            self.generator = generator
-            self.discriminator = discriminator
-
-        def forward(self, x, subject_id):
-            generated_images = self.generator(x, subject_id)
-            discriminator_output = self.discriminator(generated_images, subject_id)
-            return generated_images, discriminator_output
-
-    gan = GAN(generator, discriminator).to(device)
-
     # Define the optimizers
-    optimizer_G = optim.Adam(gan.generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
-    optimizer_D = optim.Adam(gan.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
+    optimizer_G = optim.Adam(gan.generator.parameters(), lr=0.001, betas=(0.5, 0.999))
+    optimizer_D = optim.Adam(gan.discriminator.parameters(), lr=0.001, betas=(0.5, 0.999))
+    scheduler_G = ReduceLROnPlateau(optimizer_G, 'min')
+    scheduler_D = ReduceLROnPlateau(optimizer_D, 'min')
 
     # Training loop
     num_epochs = 50
+    best_val_loss = float('inf')
+    early_stop_patience = 10
+    early_stop_counter = 0
+
+    lambda_mse = 0.4
+    criterion_GAN = nn.BCELoss()  # Your GAN loss criterion
+    criterion_MSE = nn.MSELoss()  # Mean Squared Error loss
 
     for epoch in range(num_epochs):
+        
+        generator.train()
+        discriminator.train()
+        running_loss_G = 0.0
+        running_loss_D = 0.0
+        running_loss_MSE = 0.0
+        
         for i, (filtered_images, unfiltered_images, train_subject_ids) in enumerate(train_dataloader):
             
             if flag_augmentation:
@@ -100,35 +106,55 @@ def main(args):
             filtered_images = filtered_images.to(device)
             unfiltered_images = unfiltered_images.to(device)
             train_subject_ids = train_subject_ids.to(device)
-            
+
             # Adversarial ground truths
             is_real = Variable(torch.ones(len(unfiltered_images), 1)).to(device)
             is_fake = Variable(torch.zeros(len(unfiltered_images), 1)).to(device)
         
-            # Train Generator
+            # ### Train Generator ###
             optimizer_G.zero_grad()
-            gen_images = gan.generator(filtered_images, train_subject_ids)
+            gen_images = generator(filtered_images, train_subject_ids)
             
-            g_loss = -wasserstein_loss(gan.discriminator(gen_images, train_subject_ids), is_real) # negative for real loss, since aiming to minimise
+            # wasserstein loss
+            # g_loss = -wasserstein_loss(discriminator(gen_images, train_subject_ids), is_real) # negative for real loss, since aiming to minimise
+            # bce loss
+            g_loss = criterion_GAN(discriminator(gen_images, train_subject_ids), is_real) 
+            mse_loss = criterion_MSE(gen_images, unfiltered_images)
+            g_loss+= lambda_mse * mse_loss  # lambda_mse is a weighting factor
+        
             g_loss.backward()
             optimizer_G.step()
-
-            # Train Discriminator
+            
+            running_loss_G += g_loss.item()
+            running_loss_MSE += mse_loss.item()
+            
+            ## Train Discriminator ##
             optimizer_D.zero_grad()
-            real_loss = -wasserstein_loss(gan.discriminator(unfiltered_images, train_subject_ids), is_real) # negative for real loss, since aiming to minimise
-            fake_loss = wasserstein_loss(gan.discriminator(gen_images.detach(), train_subject_ids), is_fake)
-            d_loss = (real_loss + fake_loss) / 2
+            
+            # wasserstein loss
+            # d_loss_real = -wasserstein_loss(discriminator(unfiltered_images, train_subject_ids), is_real) # negative for real loss, since aiming to minimise
+            # d_loss_fake = wasserstein_loss(discriminator(gen_images.detach(), train_subject_ids), is_fake)
+            
+            # bce loss
+            d_loss_real = criterion_GAN(discriminator(unfiltered_images, train_subject_ids), is_real)
+            d_loss_fake = criterion_GAN(discriminator(gen_images.detach(),train_subject_ids), is_fake)
+            
+            d_loss = 0.5 * (d_loss_real + d_loss_fake)
             d_loss.backward()
             optimizer_D.step()
+            running_loss_D += d_loss.item()
 
             # Clip discriminator weights (important for stability in WGAN)
-            for param in gan.discriminator.parameters():
+            for param in discriminator.parameters():
                 param.data.clamp_(-0.01, 0.01)
         
             # Validation loop
-            gan.eval()  # Set model to evaluation mode
-            total_d_val_loss = 0.0
-
+            generator.eval()  # Set model to evaluation mode
+            discriminator.eval()
+            val_running_loss_G = 0.0
+            val_running_loss_MSE = 0.0
+            val_running_loss_D = 0.0
+            
             with torch.no_grad():  # Disable gradient computation during validation
                 for (val_filtered_images, val_unfiltered_images, val_subject_ids) in val_dataloader:
                     
@@ -146,32 +172,72 @@ def main(args):
                     val_is_real = Variable(torch.ones(len(val_unfiltered_images), 1)).to(device)
                     val_is_fake = Variable(torch.zeros(len(val_unfiltered_images), 1)).to(device)
                     
-                    val_gen_images = gan.generator(val_filtered_images, val_subject_ids)
+                    val_gen_images = generator(val_filtered_images, val_gen_images)
                     
-                    # compute validation discriminator loss
-                    val_real_loss = -wasserstein_loss(gan.discriminator(val_unfiltered_images, val_subject_ids), val_is_real) # negative for real loss, since aiming to minimise
-                    val_fake_loss = wasserstein_loss(gan.discriminator(val_gen_images.detach(), val_subject_ids), val_is_fake)
-                    val_d_loss = (val_real_loss + val_fake_loss) / 2
-                    total_d_val_loss += val_d_loss.item()
+                    # compute generator loss
+                    val_g_loss = criterion_GAN(discriminator(val_gen_images, val_gen_images), val_is_real) 
+                    val_mse_loss = criterion_MSE(val_gen_images, val_unfiltered_images)
+                    val_g_loss+= lambda_mse * val_mse_loss  # lambda_mse is a weighting factor
+                    val_running_loss_G += val_g_loss.item()
+                    val_running_loss_MSE += val_mse_loss.item()
+
+                    # compute discriminator loss
+                    # val_d_loss_real = -wasserstein_loss(gan.discriminator(val_unfiltered_images, val_subject_ids), val_is_real) # negative for real loss, since aiming to minimise
+                    # val_d_loss_fake = wasserstein_loss(gan.discriminator(val_gen_images.detach(), val_subject_ids), val_is_fake)
                     
-                    # apply inverse fourier transform to generated validation images in image space
-                    if flag_FT:
-                        val_gen_images_it = itransform_Vtensor(val_gen_images)
+                    val_d_loss_real = criterion_GAN(discriminator(val_unfiltered_images, val_subject_ids), val_is_real)
+                    val_d_loss_fake = criterion_GAN(discriminator(val_gen_images.detach(),val_subject_ids), val_is_fake)
+            
+                    val_d_loss = 0.5 * (val_d_loss_real + val_d_loss_fake)
+                    val_running_loss_D += val_d_loss.item()
                     
                     
             # Calculate and print average validation loss
-            val_avg_d_loss = total_d_val_loss / len(val_dataloader)
-        
+            val_average_loss_D = val_running_loss_D / len(val_dataloader)
+            val_average_loss_G = val_running_loss_G / len(val_dataloader)
+            val_average_loss_MSE = val_running_loss_MSE / len(val_dataloader)
+
         if epoch % 2 == 0:
-            plt.imsave(f'generated_images/sub_{val_subject_ids[0]}_epoch_{epoch:02d}.png', val_gen_images_it[0,:,:,:,45].detach().numpy()[0] if flag_FT else val_gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray')
-        print(
-            "[Epoch %d/%d] [train - D loss: %f] [train - G loss: %f] [val - D loss: %f]"
-            % (epoch, num_epochs, d_loss.item(), g_loss.item(), val_avg_d_loss)
-        )
+                
+            # apply inverse fourier transform to generated validation images in image space
+            if flag_FT:
+                val_gen_images = itransform_Vtensor(val_gen_images)
+  
+            plt.imsave(f'generated_images/sub_{val_subject_ids[0]}_epoch_{epoch:02d}.png', val_gen_images[0,:,:,:,45].detach().cpu().numpy()[0] if device.type == 'cuda' else val_gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray')
         
+        average_loss_G = running_loss_G / len(train_loader)
+        average_loss_D = running_loss_D / len(train_loader)
+        average_loss_MSE = running_loss_MSE / len(train_loader)
+        
+        # early stopping
+        if val_average_loss_D < best_loss:
+            best_loss = val_average_loss_D
+            # save model
+            torch.save(generator.state_dict(), 'generator.pth')
+            torch.save(discriminator.state_dict(), 'discriminator.pth')
+            early_stop_counter = 0  # Reset early stopping counter
+        else:
+            early_stop_counter += 1  # Increment early stopping counter if no improvement
+    
+        scheduler_G.step(val_average_loss_G)
+        scheduler_D.step(val_average_loss_D)
+
+        print("[Epoch %d/%d] [train - D loss: %f] [train - G loss: %f] [train - MSE loss: %f] [val - D loss: %f] [val - G loss: %f] [val - MSE loss: %f]"
+            % (epoch, num_epochs, average_loss_D.item(), average_loss_G.item(), average_loss_MSE.item(), val_average_loss_D, val_average_loss_G, val_average_loss_MSE), flush=True)
+        
+        # Check for early stopping
+        if early_stop_counter >= early_stop_patience:
+            print("Early stopping triggered! No improvement for {} epochs.".format(early_stop_patience))
+            break  # Stop training
+
+    
 if __name__ == '__main__':
     
-    parser = argparse.ArgumentParser(description='Train a GAN for cmic_hacks project.')
+    parser = argparse.ArgumentParser(description='Train a GAN for cmic_hacks project. Example usage: python3 train.py /path/to/data/directory --aug [OPTIONAL] --fourier_transform [OPTIONAL]')
+    
+    parser.add_argument('data_dir', help='path to data directory.')
+    parser.add_argument('--cpu', action='store_true', default=False, 
+                        help='Force to use cpu.')  
     parser.add_argument('--aug', action='store_true', default=False, 
                         help='Turn on data augmentaion.')  
     parser.add_argument('--fourier_transform', action='store_true', default=False, 
