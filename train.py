@@ -67,8 +67,8 @@ def main(args):
     discriminator = Discriminator(num_subjects=num_subjects).to(device)
 
     # Define the optimizers
-    optimizer_G = optim.Adam(gan.generator.parameters(), lr=0.001, betas=(0.5, 0.999))
-    optimizer_D = optim.Adam(gan.discriminator.parameters(), lr=0.001, betas=(0.5, 0.999))
+    optimizer_G = optim.Adam(generator.parameters(), lr=0.001, betas=(0.5, 0.999))
+    optimizer_D = optim.Adam(discriminator.parameters(), lr=0.001, betas=(0.5, 0.999))
     scheduler_G = ReduceLROnPlateau(optimizer_G, 'min')
     scheduler_D = ReduceLROnPlateau(optimizer_D, 'min')
 
@@ -182,8 +182,8 @@ def main(args):
                     val_running_loss_MSE += val_mse_loss.item()
 
                     # compute discriminator loss
-                    # val_d_loss_real = -wasserstein_loss(gan.discriminator(val_unfiltered_images, val_subject_ids), val_is_real) # negative for real loss, since aiming to minimise
-                    # val_d_loss_fake = wasserstein_loss(gan.discriminator(val_gen_images.detach(), val_subject_ids), val_is_fake)
+                    # val_d_loss_real = -wasserstein_loss(discriminator(val_unfiltered_images, val_subject_ids), val_is_real) # negative for real loss, since aiming to minimise
+                    # val_d_loss_fake = wasserstein_loss(discriminator(val_gen_images.detach(), val_subject_ids), val_is_fake)
                     
                     val_d_loss_real = criterion_GAN(discriminator(val_unfiltered_images, val_subject_ids), val_is_real)
                     val_d_loss_fake = criterion_GAN(discriminator(val_gen_images.detach(),val_subject_ids), val_is_fake)
