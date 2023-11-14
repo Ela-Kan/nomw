@@ -12,7 +12,6 @@ from utils import wasserstein_loss, transform_Vtensor, itransform_Vtensor
 from Data_Loader import Dataset, prepare_data
 import matplotlib.pyplot as plt
 from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScaleIntensity, RandAdjustContrast, ToNumpy, Transform
-from monai.transforms.spatial.functional import resize
 
 def main(args):
     
@@ -46,7 +45,7 @@ def main(args):
     batch_size = 2
      
     # Create train and validation datasets and dataloaders
-    train_set = Dataset(prepare_data(os.path.join(data_dir, 'mni_train'))[:20], os.path.join(data_dir, 'mni_train'), is_motion_corrected=True)
+    train_set = Dataset(prepare_data(os.path.join(data_dir, 'mni_train')), os.path.join(data_dir, 'mni_train'), is_motion_corrected=True)
     val_set = Dataset(prepare_data(os.path.join(data_dir, 'mni_val')), os.path.join(data_dir, 'mni_val'), is_motion_corrected=True)
     print(f"Number of training volumes: {len(train_set)}. Number of validation volumes: {len(val_set)}.")
 
