@@ -12,7 +12,7 @@ class Discriminator(nn.Module):
         self.embedding = nn.Embedding(num_subjects, embed_dim)
 
         self.model = nn.Sequential(
-            nn.Conv3d(img_channels + num_subjects, 32, kernel_size=5, stride=2, padding=1),
+            nn.Conv3d(img_channels + embed_dim, 32, kernel_size=5, stride=2, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Dropout3d(0.25),
             nn.Conv3d(32, 64, kernel_size=5, stride=2, padding=1), 
