@@ -25,47 +25,47 @@ class Generator(nn.Module):
 
     def __init__(self, 
                  in_channels: int = 1, 
-                #  embedding_dim: int=16,
                  out_channels: int=1,
                  num_subjects: int = 10) -> None:
         
         super(Generator, self).__init__()
         self.in_channels = in_channels
 
-        # self.embedding = nn.Embedding(num_subjects, embedding_dim)
-
         self.encoder = nn.Sequential(
-                    nn.Conv3d(in_channels, 64, kernel_size=3, padding=1),
-                    nn.ReLU(inplace=True),
-                    nn.Conv3d(64, 128, kernel_size=3, padding=1),
-                    nn.ReLU(inplace=True),
+                    nn.Conv3d(in_channels + num_subjects, 32, kernel_size=3, padding=1),
+                    nn.LeakyReLU(0.2, inplace=True),
+                    nn.Dropout3d(0.25),  # Dropout layer
+                    nn.Conv3d(32, 64, kernel_size=3, padding=1),
+                    nn.LeakyReLU(0.2, inplace=True),
                     nn.MaxPool3d(kernel_size=2, stride=2)
                     # Add more layers as needed
                 )
 
         # Bottleneck
         self.bottleneck = nn.Sequential(
-            nn.Conv3d(128, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv3d(256, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True)
+            nn.Conv3d(64, 128, kernel_size=3, padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout3d(0.25),  # Dropout layer
+            nn.Conv3d(128, 128, kernel_size=3, padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
             # Add more layers as needed
         )
 
         # Decoder (Expansive Path)
         self.decoder = nn.Sequential(
-            nn.Conv3d(256, 128, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
             nn.Conv3d(128, 64, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.ConvTranspose3d(64, out_channels, kernel_size=2, stride=2)
+            nn.LeakyReLU(inplace=True),
+            nn.Conv3d(64, 32, kernel_size=3, padding=1),
+            nn.LeakyReLU(inplace=True),
+            nn.Dropout3d(0.25),  # Dropout layer
+            nn.ConvTranspose3d(32, out_channels, kernel_size=2, stride=2)
             # Add more layers as needed
         )
   
         # Initializing all neural network weights.
         self._initialize_weights()
 
-    def forward(self, inputs: torch.Tensor, subject_id: str = None) -> torch.Tensor:
+    def forward(self, inputs: torch.Tensor, subject_ids: str = None) -> torch.Tensor:
         """
         Args:
             inputs (tensor): input tensor into the calculation.
@@ -75,11 +75,14 @@ class Generator(nn.Module):
             A four-dimensional vector (N*C*H*W).
         """
         
-        # subject_embedding = self.embedding(subject_id)
-        # subject_embedding = subject_embedding.view(subject_embedding.size(0), subject_embedding.size(1), 1, 1, 1)
-        # subject_embedding = subject_embedding.expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
-        # x = torch.cat([inputs, subject_embedding], dim=1)
-        x1 = self.encoder(inputs)
+        # Expand subject_ids to match the spatial dimensions of inputs
+        subject_ids = subject_ids.view(subject_ids.size(0), subject_ids.size(1), 1, 1, 1)
+        subject_ids = subject_ids.expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
+
+        # Concatenate subject_ids with the input x
+        x = torch.cat([inputs, subject_ids], dim=1)
+
+        x1 = self.encoder(x)
         x2 = self.bottleneck(x1)
         out = self.decoder(x2)
         
