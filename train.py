@@ -205,13 +205,13 @@ def main(args):
   
             plt.imsave(f'generated_images/sub_{val_subject_ids[0]}_epoch_{epoch:02d}.png', val_gen_images[0,:,:,:,45].detach().cpu().numpy()[0] if device.type == 'cuda' else val_gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray')
         
-        average_loss_G = running_loss_G / len(train_loader)
-        average_loss_D = running_loss_D / len(train_loader)
-        average_loss_MSE = running_loss_MSE / len(train_loader)
+        average_loss_G = running_loss_G / len(train_dataloader)
+        average_loss_D = running_loss_D / len(train_dataloader)
+        average_loss_MSE = running_loss_MSE / len(train_dataloader)
         
         # early stopping
-        if val_average_loss_D < best_loss:
-            best_loss = val_average_loss_D
+        if val_average_loss_D < best_val_loss:
+            best_val_loss = val_average_loss_D
             # save model
             torch.save(generator.state_dict(), 'generator.pth')
             torch.save(discriminator.state_dict(), 'discriminator.pth')

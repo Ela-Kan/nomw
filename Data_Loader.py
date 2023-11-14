@@ -45,7 +45,6 @@ class Dataset(torch.utils.data.Dataset):
         
         return X.unsqueeze(dim=0), Y.unsqueeze(dim=0), subject_id
 
-
 def prepare_data(data_folder):
     """
     Prepare identifiers for DCE MRI data for all subjects in the data folder.

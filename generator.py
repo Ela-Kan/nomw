@@ -26,13 +26,15 @@ class Generator(nn.Module):
     def __init__(self, 
                  in_channels: int = 1, 
                  out_channels: int=1,
-                 num_subjects: int = 10) -> None:
+                 num_subjects: int = 10,
+                 embed_dim= 8) -> None:
         
         super(Generator, self).__init__()
         self.in_channels = in_channels
+        self.embedding = nn.Embedding(num_subjects, embed_dim)
 
         self.encoder = nn.Sequential(
-                    nn.Conv3d(in_channels + num_subjects, 32, kernel_size=3, padding=1),
+                    nn.Conv3d(in_channels + embed_dim, 32, kernel_size=3, padding=1),
                     nn.LeakyReLU(0.2, inplace=True),
                     nn.Dropout3d(0.25),  # Dropout layer
                     nn.Conv3d(32, 64, kernel_size=3, padding=1),
@@ -53,12 +55,12 @@ class Generator(nn.Module):
 
         # Decoder (Expansive Path)
         self.decoder = nn.Sequential(
-            nn.Conv3d(128, 64, kernel_size=3, padding=1),
+            nn.ConvTranspose3d(128, 64, kernel_size=2, stride=2),
             nn.LeakyReLU(inplace=True),
             nn.Conv3d(64, 32, kernel_size=3, padding=1),
             nn.LeakyReLU(inplace=True),
             nn.Dropout3d(0.25),  # Dropout layer
-            nn.ConvTranspose3d(32, out_channels, kernel_size=2, stride=2)
+            nn.Conv3d(32, out_channels, kernel_size=3, padding=1)
             # Add more layers as needed
         )
   
@@ -75,9 +77,9 @@ class Generator(nn.Module):
             A four-dimensional vector (N*C*H*W).
         """
         
+        subject_ids = self.embedding(subject_ids)
         # Expand subject_ids to match the spatial dimensions of inputs
-        subject_ids = subject_ids.view(subject_ids.size(0), subject_ids.size(1), 1, 1, 1)
-        subject_ids = subject_ids.expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
+        subject_ids = subject_ids.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
 
         # Concatenate subject_ids with the input x
         x = torch.cat([inputs, subject_ids], dim=1)
