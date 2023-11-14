@@ -118,6 +118,7 @@ def main(args):
             # wasserstein loss
             # g_loss = -wasserstein_loss(discriminator(gen_images, train_subject_ids), is_real) # negative for real loss, since aiming to minimise
             # bce loss
+            print(gen_images.shape)
             g_loss = criterion_GAN(discriminator(gen_images, train_subject_ids), is_real) 
             mse_loss = criterion_MSE(gen_images, unfiltered_images)
             g_loss+= lambda_mse * mse_loss  # lambda_mse is a weighting factor
