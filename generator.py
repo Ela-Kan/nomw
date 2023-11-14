@@ -27,7 +27,7 @@ class Generator(nn.Module):
                  in_channels: int = 1, 
                  out_channels: int=1,
                  num_subjects: int = 10,
-                 embed_dim= 8) -> None:
+                 embed_dim= 1) -> None:
         
         super(Generator, self).__init__()
         self.in_channels = in_channels
@@ -77,16 +77,27 @@ class Generator(nn.Module):
             A four-dimensional vector (N*C*H*W).
         """
         
-        subject_ids = self.embedding(subject_ids)
+        subject_embedding = self.embedding(subject_ids)
         # Expand subject_ids to match the spatial dimensions of inputs
-        subject_ids = subject_ids.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
+        subject_embedding = subject_embedding.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
         # Concatenate subject_ids with the input x
-        x = torch.cat([inputs, subject_ids], dim=1)
+        x = torch.cat([inputs, subject_embedding], dim=1)
 
         x1 = self.encoder(x)
         x2 = self.bottleneck(x1)
         out = self.decoder(x2)
         
+        # If the input size is odd, crop the output to match the input size
+        if inputs.size(2) % 2 == 1 or inputs.size(3) % 2 == 1 or inputs.size(4) % 2 == 1:
+            out = out[:, :, :inputs.size(2), :inputs.size(3), :inputs.size(4)]
+        
+        # If the output size is smaller than the input, apply padding
+        if out.size(2) < inputs.size(2) or out.size(3) < inputs.size(3) or out.size(4) < inputs.size(4):
+            pad_diff_x = inputs.size(2) - out.size(2)
+            pad_diff_y = inputs.size(3) - out.size(3)
+            pad_diff_z = inputs.size(4) - out.size(4)
+            out = nn.functional.pad(out, (0, pad_diff_z, 0, pad_diff_y, 0, pad_diff_x))
+
         return out
 
     def _initialize_weights(self) -> None:

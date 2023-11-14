@@ -38,10 +38,11 @@ class Dataset(torch.utils.data.Dataset):
         # Convert to PyTorch tensors
         X = torch.from_numpy(filtered_img.get_fdata()).float()
         Y = torch.from_numpy(unfiltered_img.get_fdata()).float()
-        subject_id = torch.tensor(subject_id)
+        subject_id = torch.tensor(subject_id, dtype=int)
         
         if self.transform:
                 X = self.transform(X)
+                Y = self.transform(Y)
         
         return X.unsqueeze(dim=0), Y.unsqueeze(dim=0), subject_id
 

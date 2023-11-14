@@ -11,7 +11,8 @@ from Discriminator import Discriminator
 from utils import wasserstein_loss, transform_Vtensor, itransform_Vtensor
 from Data_Loader import Dataset, prepare_data
 import matplotlib.pyplot as plt
-from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScaleIntensity, RandAdjustContrast, ToNumpy
+from monai.transforms import Compose,RandShiftIntensity, RandBiasField, RandScaleIntensity, RandAdjustContrast, ToNumpy, Transform
+from monai.transforms.spatial.functional import resize
 
 def main(args):
     
@@ -42,18 +43,17 @@ def main(args):
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
         
     ## Define training variables
-    batch_size = 8
+    batch_size = 2
      
     # Create train and validation datasets and dataloaders
-    train_set = Dataset(prepare_data(os.path.join(data_dir, 'mni_train')), os.path.join(data_dir, 'mni_train'), is_motion_corrected=True)
+    train_set = Dataset(prepare_data(os.path.join(data_dir, 'mni_train'))[:20], os.path.join(data_dir, 'mni_train'), is_motion_corrected=True)
     val_set = Dataset(prepare_data(os.path.join(data_dir, 'mni_val')), os.path.join(data_dir, 'mni_val'), is_motion_corrected=True)
     print(f"Number of training volumes: {len(train_set)}. Number of validation volumes: {len(val_set)}.")
 
     train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
 
-    # Apply augmentation to training set
-
+        
     """NOTE: The following transformations must be applied to a np array, but they output tensors
     """
     intensity_transform = Compose([
@@ -62,9 +62,8 @@ def main(args):
         RandAdjustContrast(gamma = 1.05, prob = 0.5)
     ])
 
-    num_subjects = len(train_set)
-    generator = Generator(num_subjects=num_subjects).to(device)
-    discriminator = Discriminator(num_subjects=num_subjects).to(device)
+    generator = Generator(num_subjects=len(train_set)+len(val_set)).to(device)
+    discriminator = Discriminator(num_subjects=len(train_set)+len(val_set)).to(device)
 
     # Define the optimizers
     optimizer_G = optim.Adam(generator.parameters(), lr=0.001, betas=(0.5, 0.999))
@@ -73,7 +72,7 @@ def main(args):
     scheduler_D = ReduceLROnPlateau(optimizer_D, 'min')
 
     # Training loop
-    num_epochs = 50
+    num_epochs = 1
     best_val_loss = float('inf')
     early_stop_patience = 10
     early_stop_counter = 0
@@ -114,11 +113,10 @@ def main(args):
             # ### Train Generator ###
             optimizer_G.zero_grad()
             gen_images = generator(filtered_images, train_subject_ids)
-            
+
             # wasserstein loss
             # g_loss = -wasserstein_loss(discriminator(gen_images, train_subject_ids), is_real) # negative for real loss, since aiming to minimise
             # bce loss
-            print(gen_images.shape)
             g_loss = criterion_GAN(discriminator(gen_images, train_subject_ids), is_real) 
             mse_loss = criterion_MSE(gen_images, unfiltered_images)
             g_loss+= lambda_mse * mse_loss  # lambda_mse is a weighting factor
@@ -173,10 +171,10 @@ def main(args):
                     val_is_real = Variable(torch.ones(len(val_unfiltered_images), 1)).to(device)
                     val_is_fake = Variable(torch.zeros(len(val_unfiltered_images), 1)).to(device)
                     
-                    val_gen_images = generator(val_filtered_images, val_gen_images)
+                    val_gen_images = generator(val_filtered_images, val_subject_ids)
                     
                     # compute generator loss
-                    val_g_loss = criterion_GAN(discriminator(val_gen_images, val_gen_images), val_is_real) 
+                    val_g_loss = criterion_GAN(discriminator(val_gen_images, val_subject_ids), val_is_real) 
                     val_mse_loss = criterion_MSE(val_gen_images, val_unfiltered_images)
                     val_g_loss+= lambda_mse * val_mse_loss  # lambda_mse is a weighting factor
                     val_running_loss_G += val_g_loss.item()
