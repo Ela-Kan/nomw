@@ -4,9 +4,13 @@ import torch.nn as nn
 class Discriminator(nn.Module):
     def __init__(self, 
                  img_channels: int = 1, 
-                 num_subjects: int = 15) -> None:
+                 num_subjects: int = 10,
+                 embed_dim = 8) -> None:
         
         super(Discriminator, self).__init__()
+        
+        self.embedding = nn.Embedding(num_subjects, embed_dim)
+
         self.model = nn.Sequential(
             nn.Conv3d(img_channels + num_subjects, 32, kernel_size=5, stride=2, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
@@ -23,12 +27,13 @@ class Discriminator(nn.Module):
         )
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x, subject_ids):
-        subject_ids = subject_ids.view(subject_ids.size(0), subject_ids.size(1), 1, 1, 1)
-        subject_ids = subject_ids.expand(-1, -1, x.size(2), x.size(3), x.size(4))
-
+    def forward(self, inputs, subject_ids):
+        
+        subject_ids = self.embedding(subject_ids)
+        # Expand subject_ids to match the spatial dimensions of inputs
+        subject_ids = subject_ids.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
         # Concatenate subject_ids with the input x
-        x = torch.cat([x, subject_ids], dim=1)
+        x = torch.cat([inputs, subject_ids], dim=1)
 
         x = self.model(x)
         x = x.view(x.size(0), -1)

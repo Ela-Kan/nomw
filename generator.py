@@ -80,7 +80,6 @@ class Generator(nn.Module):
         subject_ids = self.embedding(subject_ids)
         # Expand subject_ids to match the spatial dimensions of inputs
         subject_ids = subject_ids.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, inputs.size(2), inputs.size(3), inputs.size(4))
-
         # Concatenate subject_ids with the input x
         x = torch.cat([inputs, subject_ids], dim=1)
 
