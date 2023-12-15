@@ -42,14 +42,14 @@ def main(args):
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
         
     ## Define training variables
-    batch_size = 2
+    batch_size = 4
      
     # Create train and validation datasets and dataloaders
     train_set = Dataset(prepare_data(os.path.join(data_dir, 'mni_train')), os.path.join(data_dir, 'mni_train'), is_motion_corrected=True)
     val_set = Dataset(prepare_data(os.path.join(data_dir, 'mni_val')), os.path.join(data_dir, 'mni_val'), is_motion_corrected=True)
     print(f"Number of training volumes: {len(train_set)}. Number of validation volumes: {len(val_set)}.")
 
-    train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+    train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=False) # do not shuffle since in subject order?
     val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
 
         
@@ -65,13 +65,13 @@ def main(args):
     discriminator = Discriminator(num_subjects=len(train_set)+len(val_set)).to(device)
 
     # Define the optimizers
-    optimizer_G = optim.Adam(generator.parameters(), lr=0.001, betas=(0.5, 0.999))
-    optimizer_D = optim.Adam(discriminator.parameters(), lr=0.001, betas=(0.5, 0.999))
+    optimizer_G = optim.Adam(generator.parameters(), lr=0.01, betas=(0.5, 0.999))
+    optimizer_D = optim.Adam(discriminator.parameters(), lr=0.01, betas=(0.5, 0.999))
     scheduler_G = ReduceLROnPlateau(optimizer_G, 'min')
     scheduler_D = ReduceLROnPlateau(optimizer_D, 'min')
 
     # Training loop
-    num_epochs = 1
+    num_epochs = 100
     best_val_loss = float('inf')
     early_stop_patience = 10
     early_stop_counter = 0
@@ -201,7 +201,9 @@ def main(args):
             if flag_FT:
                 val_gen_images = itransform_Vtensor(val_gen_images)
   
-            plt.imsave(f'generated_images/sub_{val_subject_ids[0]}_epoch_{epoch:02d}.png', val_gen_images[0,:,:,:,45].detach().cpu().numpy()[0] if device.type == 'cuda' else val_gen_images[0,:,:,:,45].detach().numpy()[0], cmap='gray')
+            for idx, val_id in enumerate(val_subject_ids):
+                # plot both validation subjects
+                plt.imsave(f'generated_images/sub_{val_id}_epoch_{epoch:02d}.png', val_gen_images[idx,:,:,:,45].detach().cpu().numpy()[0] if device.type == 'cuda' else val_gen_images[idx,:,:,:,45].detach().numpy()[0], cmap='gray')
         
         average_loss_G = running_loss_G / len(train_dataloader)
         average_loss_D = running_loss_D / len(train_dataloader)
@@ -221,7 +223,7 @@ def main(args):
         scheduler_D.step(val_average_loss_D)
 
         print("[Epoch %d/%d] [train - D loss: %f] [train - G loss: %f] [train - MSE loss: %f] [val - D loss: %f] [val - G loss: %f] [val - MSE loss: %f]"
-            % (epoch, num_epochs, average_loss_D.item(), average_loss_G.item(), average_loss_MSE.item(), val_average_loss_D, val_average_loss_G, val_average_loss_MSE), flush=True)
+            % (epoch, num_epochs, average_loss_D, average_loss_G, average_loss_MSE, val_average_loss_D, val_average_loss_G, val_average_loss_MSE), flush=True)
         
         # Check for early stopping
         if early_stop_counter >= early_stop_patience:
