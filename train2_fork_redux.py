@@ -226,17 +226,9 @@ for epoch in range(num_epochs):
         #plt.imsave(f'generated_images/resunet_clean_images_sub_epoch_{epoch:02d}.png', clean_images[0,:,:,:,45].detach().cpu().numpy()[0], cmap='gray')
         #plt.imsave(f'generated_images/resunet_denoised_images_sub_epoch_{epoch:02d}.png', denoised_images[0,:,:,:,45].detach().cpu().numpy()[0], cmap='gray')
 
-def convert(s):
-    """Convert space separated string numbers into array of floats. Expects string list as argument."""
-    a = []
-    for i in s.split():
-        a.append(float(i))
-
-    return numpy.array(a)
-
 # Final average training and validation loss arrays in numpy array format
-print("Training loss array:", convert(numpy.average(numpy.array(train_loss_arr).reshape(-1,trainvol_len), axis=1)))
-print("Validation loss array:", convert(numpy.average(numpy.array(val_loss_arr).reshape(-1,valvol_len), axis=1)))
+print("Training loss array:", numpy.average(numpy.array(train_loss_arr).reshape(-1,trainvol_len), axis=1))
+print("Validation loss array:", numpy.average(numpy.array(val_loss_arr).reshape(-1,valvol_len), axis=1))
 
 # Save the model weights
 #torch.save(unet.state_dict(), 'resunet3d_weights.pth') Commented out for now
